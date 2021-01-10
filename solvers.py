@@ -61,7 +61,8 @@ class Swarm(object):
 
 		self.positions = np.random.rand(dimensions, size)*10
 
-		# self.particles = [Particle(self.positions[:,i], ttl = 100) for i in range(size)]
+		# Currently particles dont reference the view properly
+		self.particles = [Particle(self.positions[:,i], ttl = 100) for i in range(size)]
 
 		self.behaviour = function
 		self.extra_args = args
@@ -70,7 +71,7 @@ class Swarm(object):
 
 		self.ttl = np.empty(size)
 
-	def swarm_step(self, step: float = 0.1) -> float:
+	def swarm_step(self, step: float = 0.01) -> float:
 
 		# Set initial stepsize
 		h = step
@@ -109,7 +110,7 @@ if __name__ == "__main__":
 	rho = 28.
 	beta = 8. / 3.
 	args = sigma, rho, beta
-	particles = Swarm(BT, derivative_lorenz, size = 50, dimensions = 3, *args)
+	particles = Swarm(BT, derivative_lorenz, size = 1000, dimensions = 3, *args)
 
 	# def animated(d):
 	# 	particles.swarm_step()
@@ -124,18 +125,52 @@ if __name__ == "__main__":
 	# animation = FuncAnimation(fig, animated, interval = 300)
 	# plt.show()
 
-	fig = px.scatter_3d()
-	
-	for _ in range(10):
+	frames = []
+
+	initial_scatter = go.Scatter3d(
+		x=particles.positions[0,:],
+		y=particles.positions[1,:],
+		z=particles.positions[2,:],
+		mode = 'markers'
+	)
+
+	frames.append(go.Frame(data = initial_scatter))
+
+	for _ in range(1000):
 		particles.swarm_step()
-		fig.add_trace(
-			go.Scatter3d(
-				x=particles.positions[0,:],
-				y=particles.positions[1,:],
-				z=particles.positions[2,:],
-				mode = 'markers',
-				showlegend=False)
-		)
+		frames.append(go.Frame(
+			data = [
+				go.Scatter3d(
+					x=particles.positions[0,:],
+					y=particles.positions[1,:],
+					z=particles.positions[2,:],
+					mode = 'markers',
+					showlegend=False)
+				]
+		))
+
+	fig = go.Figure(
+		data = initial_scatter,
+		layout = go.Layout(
+			title = go.layout.Title(text = "Lorenz Attractor"),
+			scene = dict(
+				xaxis=dict(range=[-25, 25], autorange=False),
+				yaxis=dict(range=[35, -35], autorange=False),
+				zaxis = dict(range = [0, 55], autorange = False)
+				),
+			updatemenus=[dict(
+				type="buttons",
+				buttons=[dict(label="Play",
+							method="animate",
+							args=[None, {"frame": {"duration": 0.0166666, 
+                                                    "redraw": True},
+                                                    "fromcurrent": True, 
+                                                    "transition": {"duration": 0.01}}])])]
+		),
+		frames = frames
+	)
+
+	fig.update_layout(scene_aspectmode='cube')
 
 	fig.show()
 
