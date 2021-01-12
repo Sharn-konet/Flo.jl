@@ -5,7 +5,7 @@ import json
 
 from numba import jitclass, vectorize, float64
 
-from example_funcs import derivative_lorenz
+from example_funcs import StrangeAttractors
 
 # Plot in 3D
 import matplotlib.pyplot as plt
@@ -59,7 +59,7 @@ class Swarm(object):
 
 		np.random.seed(1)
 
-		self.positions = np.random.rand(dimensions, size)*10
+		self.positions = (np.random.rand(dimensions, size) - 0.5)*100
 
 		# Currently particles dont reference the view properly
 		self.particles = [Particle(self.positions[:,i], ttl = 100) for i in range(size)]
@@ -71,7 +71,7 @@ class Swarm(object):
 
 		self.ttl = np.empty(size)
 
-	def swarm_step(self, step: float = 0.01) -> float:
+	def swarm_step(self, step: float = 0.001) -> float:
 
 		# Set initial stepsize
 		h = step
@@ -106,11 +106,7 @@ class Particle(Swarm):
 
 if __name__ == "__main__":
 	BT = read_solver("RK4")
-	sigma = 10.
-	rho = 28.
-	beta = 8. / 3.
-	args = sigma, rho, beta
-	particles = Swarm(BT, derivative_lorenz, size = 1000, dimensions = 3, *args)
+	particles = Swarm(BT, StrangeAttractors.TSUCS1, size = 2000, dimensions = 3)
 
 	# def animated(d):
 	# 	particles.swarm_step()
@@ -137,7 +133,7 @@ if __name__ == "__main__":
 	frames.append(go.Frame(data = initial_scatter))
 
 	for _ in range(1000):
-		particles.swarm_step()
+		particles.swarm_step(0.01)
 		frames.append(go.Frame(
 			data = [
 				go.Scatter3d(
@@ -154,18 +150,18 @@ if __name__ == "__main__":
 		layout = go.Layout(
 			title = go.layout.Title(text = "Lorenz Attractor"),
 			scene = dict(
-				xaxis=dict(range=[-25, 25], autorange=False),
-				yaxis=dict(range=[35, -35], autorange=False),
-				zaxis = dict(range = [0, 55], autorange = False)
+				xaxis=dict(range=[-1000, 1000], autorange=False),
+				yaxis=dict(range=[1000, -1000], autorange=False),
+				zaxis = dict(range = [-1000, 1000], autorange = False)
 				),
 			updatemenus=[dict(
 				type="buttons",
 				buttons=[dict(label="Play",
 							method="animate",
-							args=[None, {"frame": {"duration": 0.0166666, 
+							args=[None, {"frame": {"duration": 0.0001, 
                                                     "redraw": True},
                                                     "fromcurrent": True, 
-                                                    "transition": {"duration": 0.01}}])])]
+                                                    "transition": {"duration": 0.00}}])])]
 		),
 		frames = frames
 	)
