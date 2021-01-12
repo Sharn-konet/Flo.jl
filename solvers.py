@@ -150,15 +150,21 @@ if __name__ == "__main__":
 		layout = go.Layout(
 			title = go.layout.Title(text = "Lorenz Attractor"),
 			scene = dict(
-				xaxis=dict(range=[-1000, 1000], autorange=False),
-				yaxis=dict(range=[1000, -1000], autorange=False),
-				zaxis = dict(range = [-1000, 1000], autorange = False)
+				xaxis=dict(range=[min([np.min(frame['data'][0]['x']) for frame in frames]), 
+								  max([np.max(frame['data'][0]['x']) for frame in frames])], 
+					autorange=False),
+				yaxis=dict(range=[min([np.min(frame['data'][0]['y']) for frame in frames]), 
+								  max([np.max(frame['data'][0]['y']) for frame in frames])], 
+					autorange=False),
+				zaxis=dict(range=[min([np.min(frame['data'][0]['z']) for frame in frames]), 
+								  max([np.max(frame['data'][0]['z']) for frame in frames])], 
+					autorange = False)
 				),
 			updatemenus=[dict(
 				type="buttons",
 				buttons=[dict(label="Play",
 							method="animate",
-							args=[None, {"frame": {"duration": 0.0001, 
+							args=[None, {"frame": {"duration": 1/60, 
                                                     "redraw": True},
                                                     "fromcurrent": True, 
                                                     "transition": {"duration": 0.00}}])])]
