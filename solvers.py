@@ -59,7 +59,7 @@ class Swarm(object):
 
 		np.random.seed(1)
 
-		self.positions = (np.random.rand(dimensions, size) - 0.5)*25
+		self.positions = (np.random.rand(dimensions, size))
 
 		# Currently particles dont reference the view properly
 		self.particles = [Particle(self.positions[:,i], ttl = 100) for i in range(size)]
@@ -105,7 +105,7 @@ class Particle(Swarm):
 
 
 if __name__ == "__main__":
-	BT = read_solver("RK4")
+	BT = read_solver("Dormand-Prince")
 	particles = Swarm(BT, StrangeAttractors.lorenz, size = 2000, dimensions = 3)
 
 	# def animated(d):
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 	frames.append(go.Frame(data = initial_scatter))
 
 	for _ in range(1000):
-		particles.swarm_step(0.01)
+		particles.swarm_step(0.025)
 		frames.append(go.Frame(
 			data = [
 				go.Scatter3d(

@@ -128,3 +128,5 @@ dmypy.json
 test.ipynb
 
 settings.json
+*.svg
+example_code/*
