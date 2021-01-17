@@ -27,8 +27,9 @@ class ButcherTableau(object):
 		self.alpha = alpha
 		self.beta = beta
 		self.gamma = gamma
+		self.embedded = alpha.ndim == 2
 
-		assert((len(alpha) == len(beta)))
+		assert((len(alpha) == len(beta)) or (alpha.shape[1] == beta.shape[0]))
 		assert(gamma.shape[0] == gamma.shape[1])
 
 	def __str__(self):
@@ -53,19 +54,21 @@ class ButcherTableau(object):
 # 	('ttl', float64[:])
 # ])
 class Swarm(object):
-	def __init__(self, tableau: ButcherTableau, function: Function, *args, size: int = 1000, dimensions = 2, initial_t = 0, ):
+	def __init__(self, tableau: ButcherTableau, function: Function, *args, size: int = 1000, dimensions = 2, initial_t = 0):
 		self.alpha, self.beta, self.gamma = tableau.alpha, tableau.beta, tableau.gamma
 		self.tableau = tableau
 
 		np.random.seed(1)
 
-		self.positions = (np.random.rand(dimensions, size))
+		self.positions = (np.random.rand(dimensions, size))*5
 
 		# Currently particles dont reference the view properly
 		self.particles = [Particle(self.positions[:,i], ttl = 100) for i in range(size)]
 
 		self.behaviour = function
 		self.extra_args = args
+
+		self.error_history = np.empty(shape = (dimensions, size, 0))
 
 		self.clock = initial_t
 
@@ -87,10 +90,14 @@ class Swarm(object):
 		f = np.matmul(derivative_evaluations, self.alpha.T)
 
 		# Calculate estimates for y for each method in embedded method
-		y_estimates =  h*f + self.positions
-
-		# Get estimate of total error
-		largest_error = np.max(abs(np.diff(y_estimates, axis = 0)))
+		if self.tableau.embedded:
+			y_estimates =  h*f + self.positions[:,:,np.newaxis] 
+			# Get estimate of total error
+			error = abs(np.diff(y_estimates, axis = 2))
+			self.error_history = np.append(self.error_history, error, axis = 2)
+			y_estimates = y_estimates[:,:,0]
+		else:
+			y_estimates = h*f + self.positions
 				
 		self.clock += h
 		self.positions = y_estimates
@@ -99,27 +106,16 @@ class Particle(Swarm):
 	def __init__(self, position: np.ndarray, ttl: float) -> None:
 		self.position = position
 		self.ttl = ttl
+
+	def __repr__(self):
+		return str(list(self.position))
 		
 	def calculate_step():
 		pass
 
-
 if __name__ == "__main__":
 	BT = read_solver("Dormand-Prince")
-	particles = Swarm(BT, StrangeAttractors.lorenz, size = 2000, dimensions = 3)
-
-	# def animated(d):
-	# 	particles.swarm_step()
-	# 	ax.scatter(particles.positions[0,:], particles.positions[1,:], particles.positions[2,:])
-
-	# animated_step = animated
-	# fig = plt.figure()
-	# fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
-	# ax = fig.add_subplot(111, projection='3d')
-	# ax.set_facecolor((0.5, 0.5, 0.5))
-
-	# animation = FuncAnimation(fig, animated, interval = 300)
-	# plt.show()
+	particles = Swarm(BT, StrangeAttractors.lorenz, size = 200, dimensions = 3)
 
 	frames = []
 
@@ -133,7 +129,7 @@ if __name__ == "__main__":
 	frames.append(go.Frame(data = initial_scatter))
 
 	for _ in range(1000):
-		particles.swarm_step(0.025)
+		particles.swarm_step(0.001)
 		frames.append(go.Frame(
 			data = [
 				go.Scatter3d(
@@ -144,6 +140,17 @@ if __name__ == "__main__":
 					showlegend=False)
 				]
 		))
+
+
+	iterations = np.array([*range(particles.error_history.shape[2])])
+	swarm_size = np.array([*range(particles.error_history.shape[1])])
+	iterations, swarm_size = np.meshgrid(iterations, swarm_size)
+
+	fig = go.Figure(data=[go.Surface(z = particles.error_history[0,:,:])])
+
+	fig.update_layout(title='Error Surface', autosize=True)
+
+	fig.show()
 
 	fig = go.Figure(
 		data = initial_scatter,
@@ -175,5 +182,3 @@ if __name__ == "__main__":
 	fig.update_layout(scene_aspectmode='cube')
 
 	fig.show()
-
-	

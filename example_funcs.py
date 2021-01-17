@@ -196,3 +196,23 @@ class StrangeAttractors:
 		fz = gamma + alpha*z -(1/3)*z*z*z - (x*x + y*y)*(1 + epsilon*z) + zeta*z*x*x*x
 
 		return np.array([fx, fy, fz])
+
+	def four_wing(t, v, alpha:float = 4, beta: float = 6, sigma:float = 10, delta: float = 5, kappa: float = 1):
+
+		x, y, z = v[0,:], v[1,:], v[2,:]
+
+		fx = alpha*x - beta*y*z
+		fy = -sigma*y + x*z
+		fz = kappa*x - delta*z + x*z
+
+		return np.array([fx, fy, fz])
+
+	def torus(t, v, alpha: float = 3, beta: float = 2.2, gamma: float = 1, mu: float = 1.51):
+
+		x, y, z = v[0,:], v[1,:], v[2,:]
+
+		fx = alpha*x*(1-y) - beta*z
+		fy = -gamma*y*(1-x*x)
+		fz = mu*x
+
+		return np.array([fx, fy, fz])
