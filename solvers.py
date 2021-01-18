@@ -23,11 +23,12 @@ def read_solver(solver):
 	return BT
 
 class ButcherTableau(object):
-	def __init__(self, alpha: np.array, beta: np.array, gamma: np.array, name = "Custom Solver"):
+	def __init__(self, alpha: np.array, beta: np.array, gamma: np.array, order: int, name = "Custom Solver"):
 		self.alpha = alpha
 		self.beta = beta
 		self.gamma = gamma
 		self.embedded = alpha.ndim == 2
+		self.order = order
 
 		assert((len(alpha) == len(beta)) or (alpha.shape[1] == beta.shape[0]))
 		assert(gamma.shape[0] == gamma.shape[1])
@@ -54,13 +55,15 @@ class ButcherTableau(object):
 # 	('ttl', float64[:])
 # ])
 class Swarm(object):
-	def __init__(self, tableau: ButcherTableau, function: Function, *args, size: int = 1000, dimensions = 2, initial_t = 0):
+	def __init__(self, tableau: ButcherTableau, function: Function, *args, size: int = 1000, dimensions = 2, initial_t = 0, tol = 1e-5):
 		self.alpha, self.beta, self.gamma = tableau.alpha, tableau.beta, tableau.gamma
 		self.tableau = tableau
 
 		np.random.seed(1)
 
 		self.positions = (np.random.rand(dimensions, size))*5
+		self.step_size = np.repeat([0.01], size)
+		self.tol = tol
 
 		# Currently particles dont reference the view properly
 		self.particles = [Particle(self.positions[:,i], ttl = 100) for i in range(size)]
@@ -74,10 +77,13 @@ class Swarm(object):
 
 		self.ttl = np.empty(size)
 
-	def swarm_step(self, step: float = 0.001) -> float:
+	def swarm_step(self, adaptive = True) -> float:
+
+		if adaptive: assert(self.tableau.embedded)
 
 		# Set initial stepsize
-		h = step
+		h = self.step_size
+		sf = 0.9
 
 		# Preallocate array
 		derivative_evaluations = np.zeros([self.positions.shape[0], self.positions.shape[1], len(self.beta)])
@@ -91,10 +97,17 @@ class Swarm(object):
 
 		# Calculate estimates for y for each method in embedded method
 		if self.tableau.embedded:
-			y_estimates =  h*f + self.positions[:,:,np.newaxis] 
+			y_estimates =  h[np.newaxis,...,np.newaxis]*f + self.positions[:,:,np.newaxis] 
 			# Get estimate of total error
-			error = abs(np.diff(y_estimates, axis = 2))
+			error = np.diff(y_estimates, axis = 2)
 			self.error_history = np.append(self.error_history, error, axis = 2)
+			max_error = np.max(abs(error), axis = 0)[:,0]
+			if adaptive:
+				if np.any(max_error > self.tol):
+					self.step_size[max_error > self.tol] = np.minimum.reduce([sf*h[max_error > self.tol]*(abs(self.tol/max_error[max_error > self.tol]))**(1/(self.tableau.order)), np.ones(sum(max_error>self.tol))])
+					self.swarm_step(adaptive = True)
+				else:
+					self.step_size = np.minimum.reduce([sf*h*(abs(self.tol/max_error))**(1/(self.tableau.order-1)), np.ones(len(max_error))])
 			y_estimates = y_estimates[:,:,0]
 		else:
 			y_estimates = h*f + self.positions
@@ -115,7 +128,7 @@ class Particle(Swarm):
 
 if __name__ == "__main__":
 	BT = read_solver("Dormand-Prince")
-	particles = Swarm(BT, StrangeAttractors.lorenz, size = 200, dimensions = 3)
+	particles = Swarm(BT, StrangeAttractors.lorenz, size = 1000, dimensions = 3)
 
 	frames = []
 
@@ -128,7 +141,7 @@ if __name__ == "__main__":
 
 	frames.append(go.Frame(data = initial_scatter))
 
-	for _ in range(1000):
+	for _ in range(500):
 		particles.swarm_step(0.001)
 		frames.append(go.Frame(
 			data = [
