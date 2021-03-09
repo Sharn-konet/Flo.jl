@@ -61,7 +61,8 @@ class Swarm(object):
 
 		np.random.seed(1)
 
-		self.positions = (np.random.rand(dimensions, size))*5
+		#self.positions = (np.random.rand(dimensions, size) - 0.5)*10
+		self.positions = np.random.rand(dimensions, size)*10
 		self.step_size = np.repeat([0.01], size)
 		self.tol = tol
 
@@ -128,7 +129,7 @@ class Particle(Swarm):
 
 if __name__ == "__main__":
 	BT = read_solver("Dormand-Prince")
-	particles = Swarm(BT, StrangeAttractors.lorenz, size = 1000, dimensions = 3)
+	particles = Swarm(BT, StrangeAttractors.TSUCS1, size = 1000, dimensions = 3)
 
 	frames = []
 
@@ -141,8 +142,8 @@ if __name__ == "__main__":
 
 	frames.append(go.Frame(data = initial_scatter))
 
-	for _ in range(500):
-		particles.swarm_step(0.001)
+	for _ in range(600):
+		particles.swarm_step()
 		frames.append(go.Frame(
 			data = [
 				go.Scatter3d(
@@ -161,7 +162,12 @@ if __name__ == "__main__":
 
 	fig = go.Figure(data=[go.Surface(z = particles.error_history[0,:,:])])
 
-	fig.update_layout(title='Error Surface', autosize=True)
+	fig.update_layout(title='Error Surface', 
+				      scene = dict(
+						  xaxis_title='Iteration',
+						  yaxis_title='Particle',
+						  zaxis_title='Error'),
+					  )
 
 	fig.show()
 
@@ -184,10 +190,10 @@ if __name__ == "__main__":
 				type="buttons",
 				buttons=[dict(label="Play",
 							method="animate",
-							args=[None, {"frame": {"duration": 1/60, 
+							args=[None, {"frame": {"duration": 1/15, 
                                                     "redraw": True},
                                                     "fromcurrent": True, 
-                                                    "transition": {"duration": 0.00}}])])]
+                                                    "transition": {"duration": 0.002}}])])]
 		),
 		frames = frames
 	)
