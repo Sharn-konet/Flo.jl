@@ -3,7 +3,7 @@ module StrangeAttractors
 include("interface.jl")
 using .Interface: @ODE
 
-export lorenz, TSUCS1
+export lorenz, TSUCS1, TSUCS2, yuwang
 
 function LORENZ(t::Float64, u::Matrix{Float64}; σ::Float64 = 10.0, ρ::Float64 = 28.0, β::Float64 = 8/3)
 
@@ -27,6 +27,18 @@ TSUCS1 = @ODE quote
     dx = α*(y-x) + δ*x*z
     dy = ζ*y - x*z
     dz = β*z + x*y - ϵ*x*x
+end
+
+TSUCS2 = @ODE quote
+    dx = α*(y-x) + δ*x*z
+    dy = (ς*x) - (x*z) + ζ*y
+    dz = (β*z) + (x * y) - (ϵ*x*x)
+end
+
+yuwang = @ODE quote
+    dx = α*(y-x)
+    dy = β*x - σ*x*z
+    dz = exp(x*y) - δ*z
 end
 
 end
