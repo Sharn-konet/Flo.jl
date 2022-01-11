@@ -2,7 +2,7 @@ using Revise
 
 module Solvers
 
-export RK4, DormandPrince
+export ButcherTableau, RK4
 
 struct ButcherTableau
     α::Vector{Number}
