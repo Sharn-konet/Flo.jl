@@ -47,7 +47,33 @@ macro ODE(∂::Vararg{Expr})
     @assert length(dependent_vars) == dim
 
     quote
-        function ODEFunc!(t::Real, u::Matrix{<:Real}, $(constants...))
+        """ 
+            ODEFunc!(t, u, [constants...])
+
+        Update u based on current position and system defined using @ODE and provided
+        constants.
+
+        # Example
+        ``` julia-repl
+        julia> lorenz = @ODE quote
+            dx = σ*(y-x) 
+            dy = x*(ρ-z) - y 
+            dz = x * y - β*z
+        end
+
+        julia> u = [
+            [1,2,3]
+            [2,3,4]
+            [4,5,6]
+        ]
+
+        julia> lorenz(0.1, u, σ = 10, ρ = 28, β = 8/3)
+        ```
+        """
+        function ODEFunc!(t::Real, u::Matrix{<:Real}; $(constants...))
+
+            @assert size(u, 1) == $dim
+
             $(dependent_vars...) = eachrow(u)
 
             for equation in ∂
@@ -55,7 +81,7 @@ macro ODE(∂::Vararg{Expr})
             end
         end
 
-        ODEFunction(ODEFunc, 3)
+        ODEFunction(ODEFunc, $dim)
     end 
 end
 
