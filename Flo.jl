@@ -7,13 +7,25 @@ struct FlowFunction <: Function
     fz::Expr
 end
 
-Base.@kwdef struct Swarm
+struct Swarm
     func::Function
-    dim::Int
-    positions::Vector{Float64}
-    step_size::Vector{Float64}
+    size::Int64
+    dim::Int8
     tol::Float64
-    
-    error_history::Vector{Float64} = Vector{Float64}()
-    Swarm(dim, positions, step_size, tol, func)
+    positions::Matrix{Float64}
+    step_size::Vector{Float64}
+    error_history::Array{Float64}
+
+    function Swarm(func::Function, dim::Int64, size::Int64, step_size::Float64)
+        
+        if dim != 3
+            error("Number of dimensions not supported.")
+        end
+        
+        new(func, size, 3, 1e-8,
+            Matrix{Float64}(undef, 3, size),
+            repeat([step_size], size),
+            Array{Float64}(undef, 3, size, 0)
+        )
+    end
 end
