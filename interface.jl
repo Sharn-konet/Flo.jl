@@ -22,38 +22,37 @@ struct ODEFunction <: Function
     dimensions::Int8
 end
 
-ODEFunction(args...) = ODEFunction.func(args...)
 
 
-macro ODE(∂x::Expr, ∂y::Expr, ∂z::Expr)
+macro ODE(∂::Vararg{Expr})
+    dim = length(∂)
 
     # Check that ∂ is not used within the code
     @assert nor([occursin("∂", string(expr)) for expr in [∂x, ∂y, ∂z]]...) "Remove usage of ∂."
             
     symbols = Vector{Symbol}()
 
-    for expression in (∂x, ∂y, ∂z)
+    for expression in ∂
         collectSymbols!(expression, symbols)
     end
 
     symbols = filter!(!Meta.isoperator, symbols)
     symbols = filter!(!isFunction, symbols)
 
-    diff_symbols = Set{Symbol}([expr.args[1] for expr in [∂x, ∂y, ∂z]])
+    diff_symbols = Set{Symbol}([expr.args[1] for expr in ∂])
     dependent_vars = Set{Symbol}([Symbol(string(symbol)[end]) for symbol in diff_symbols])
     constants = setdiff(symbols, diff_symbols, dependent_vars)
     constants = [Expr(:(::), constant, :(Real)) for constant in constants]
 
+    @assert length(dependent_vars) == dim
+
     quote
-        function ODEFunc(t::Real, u::Matrix{<:Real}, $(constants...))
+        function ODEFunc!(t::Real, u::Matrix{<:Real}, $(constants...))
+            $(dependent_vars...) = eachrow(u)
 
-            x, y, z = u[1,:], u[2,:], u[3,:]
-        
-            $(@.(∂x))
-            $(@.(∂y))
-            $(@.(∂z))
-
-            return $(diff_symbols...)
+            for equation in ∂
+                $(@.(equation))
+            end
         end
 
         ODEFunction(ODEFunc, 3)
