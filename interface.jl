@@ -17,7 +17,18 @@ function isFunction(symbol::Symbol)
     return false
 end
 
+struct ODEFunction <: Function
+    func::Function
+    dimensions::Int8
+end
+
+ODEFunction(args...) = ODEFunction.func(args...)
+
+
 macro ODE(∂x::Expr, ∂y::Expr, ∂z::Expr)
+
+    # Check that ∂ is not used within the code
+    @assert nor([occursin("∂", string(expr)) for expr in [∂x, ∂y, ∂z]]...) "Remove usage of ∂."
             
     symbols = Vector{Symbol}()
 
@@ -33,18 +44,19 @@ macro ODE(∂x::Expr, ∂y::Expr, ∂z::Expr)
     constants = setdiff(symbols, diff_symbols, dependent_vars)
     constants = [Expr(:(::), constant, :(Real)) for constant in constants]
 
-    # Check that ∂ is not used within the code
-    @assert nor([occursin("∂", string(expr)) for expr in [∂x, ∂y, ∂z]]...) "Remove usage of ∂."
-
     quote
         function ODEFunc(t::Real, u::Matrix{<:Real}, $(constants...))
 
             x, y, z = u[1,:], u[2,:], u[3,:]
         
-            $(@.(∂x)); $(@.(∂y)); $(@.(∂z))
+            $(@.(∂x))
+            $(@.(∂y))
+            $(@.(∂z))
 
             return $(diff_symbols...)
         end
+
+        ODEFunction(ODEFunc, 3)
     end 
 end
 
