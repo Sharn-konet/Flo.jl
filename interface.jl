@@ -44,18 +44,17 @@ macro ODE(∂x::Expr, ∂y::Expr, ∂z::Expr)
     constants = setdiff(symbols, diff_symbols, dependent_vars)
     constants = [Expr(:(::), constant, :(Real)) for constant in constants]
 
-    initialisation = [:($symbol = Vector{Float64}(undef, 3)) for symbol in diff_symbols]
+    diff_var_initialisation = [:($symbol = Vector{Float64}(undef, 3)) for symbol in diff_symbols]
+    system = [var"@__dot__"(LineNumberNode(1), Main, ∂).args[1] for ∂ in [∂x, ∂y, ∂z]] # Apply broadcasting
 
     func = quote
         function ODEFunc(t::Real, u::Matrix{<:Real}; $(constants...))
 
             x, y, z = eachrow(u)
 
-            $(initialisation...)
+            $(diff_var_initialisation...)
 
-            $(var"@__dot__"(LineNumberNode(1), Main, ∂x).args[1])
-            $(var"@__dot__"(LineNumberNode(1), Main, ∂y).args[1])
-            $(var"@__dot__"(LineNumberNode(1), Main, ∂z).args[1])
+            $(system...)
 
             return $(diff_symbols...)
         end
