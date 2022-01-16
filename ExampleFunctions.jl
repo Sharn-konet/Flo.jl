@@ -1,3 +1,5 @@
+using Revise
+
 module StrangeAttractors
 
 include("interface.jl")
