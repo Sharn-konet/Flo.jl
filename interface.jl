@@ -1,6 +1,6 @@
 module Interface
 
-using MacroTools: postwalk
+using MacroTools: postwalk, isline
 
 function collectSymbols!(expression::Expr, symbols::Vector{Symbol})
     for arg in expression.args
@@ -17,6 +17,14 @@ function isFunction(symbol::Symbol)
         return isa(getfield(Main, symbol), Function)
     end
     return false
+end
+
+function replaceVars(expr::Union{Expr, Symbol}, mapping::Dict)
+    if expr in keys(mapping)
+        return :(u[$(mapping[expr]), :])
+    end
+    
+    return expr
 end
 
 struct ODEFunction <: Function
@@ -49,49 +57,47 @@ end
 # julia> lorenz(0.1, u, σ = 10, ρ = 28, β = 8/3)
 # ```
 # """
-macro ODE(∂x::Expr, ∂y::Expr, ∂z::Expr)
+macro ODE(dx⃗::Expr...)
+
+    dim = length(dx⃗)
   
     symbols = Vector{Symbol}()
 
-    for expression in (∂x, ∂y, ∂z)
+    for expression in dx⃗
         collectSymbols!(expression, symbols)
     end
 
+    # Filter out operators and functions
     symbols = filter!(!Meta.isoperator, symbols)
     symbols = filter!(!isFunction, symbols)
 
-    diff_symbols = Vector{Symbol}([expr.args[1] for expr in [∂x, ∂y, ∂z]])
+    diff_symbols = Vector{Symbol}([expr.args[1] for expr in dx⃗])
+
     dependent_vars = Vector{Symbol}([Symbol(string(symbol)[end]) for symbol in diff_symbols])
+    mapping_to_indices = Dict(symbol => index for (index, symbol) in enumerate(dependent_vars))
+
     constants = setdiff(symbols, diff_symbols, dependent_vars)
     constants = [Expr(:(::), constant, :(Real)) for constant in constants]
 
-    # @show dependent_vars = Expr(:tuple, dependent_vars[1:end-1]..., :($(dependent_vars[end]) = eachrow(u)))
-    diff_var_initialisation = [:($symbol = Vector{Float64}(undef, size(u,2))) for symbol in diff_symbols]
-    system = [var"@__dot__"(LineNumberNode(1), Main, ∂).args[1] for ∂ in [∂x, ∂y, ∂z]] # Apply broadcasting
+    diff_var_initialisation = [:($symbol = Vector{Float64}(undef, size(u, dim))) for symbol in diff_symbols]
+    system = [var"@__dot__"(LineNumberNode(1), Main, expr).args[1] for expr in dx⃗] # Apply broadcasting
+    system = [postwalk(x -> replaceVars(x, mapping_to_indices), expr) for expr in system] # Replace variables with indices
 
     func = quote
-        function ODEFunc(t::Real, u::Matrix{<:Real}; $(constants...))
-
-            x, y, z = eachrow(u)
-
+        function ODEFunc(t::Real, u::Matrix{<:Real}; $(constants...))::Matrix{<:Float64}
             $(diff_var_initialisation...)
             $(system...)
 
-            return $(diff_symbols...)
+            return vcat($(diff_symbols))
         end
-
-        ODEFunction(ODEFunc, 3)
     end
-
     @show func
-
     return func
 end
 
 # Method handles quote blocks being used to define ODEs
-macro ODE(derivatives::Expr)
-    derivatives = filter(x -> !(x isa LineNumberNode), derivatives.args)
-    # @assert length(derivatives) == 3 "Incorrected number of derivatives defined."
+macro ODE(derivative_block::Expr)
+    derivatives = filter(x -> !isline(x), derivative_block.args)
     @eval @ODE($(derivatives...))
 end
 
