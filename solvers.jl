@@ -5,9 +5,9 @@ module Solvers
 export ButcherTableau, RK4
 
 struct ButcherTableau
-    α::Vector{Number}
-    β::Vector{Number}
-    γ::Matrix{Number}
+    α::Vector{<:Real}
+    β::Vector{<:Real}
+    γ::Matrix{<:Real}
     order::Int
     ButcherTableau(α, β, γ, order) = (length(α) == length(β)) & (size(γ, 1) == size(γ,2)) ? 
         new(α, β, γ, order) : error("Not a valid Butcher Tableau")
@@ -25,7 +25,7 @@ end
 RK4 = ButcherTableau(
     [1/6, 1/3, 1/3, 1/6], # α
     [0, 1/2, 1/2, 1], # β
-    [[0, 0,0, 0] [1/2, 0, 0, 0] [0, 1/2, 0, 0] [0, 0, 1, 0 ]], # γ
+    [[0, 1/2, 0, 0] [0, 0, 1/2, 0] [0, 0, 0, 1] [0, 0, 0, 0]], # γ
     4 # order
 )
 
