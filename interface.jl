@@ -79,16 +79,16 @@ macro ODE(dx⃗::Expr...)
     constants = setdiff(symbols, diff_symbols, dependent_vars)
     constants = [Expr(:(::), constant, :(Real)) for constant in constants]
 
-    diff_var_initialisation = [:($symbol = Vector{Float64}(undef, size(u, dim))) for symbol in diff_symbols]
+    diff_var_initialisation = [:($symbol = Vector{Float64}(undef, size(u, 2))) for symbol in diff_symbols]
     system = [var"@__dot__"(LineNumberNode(1), Main, expr).args[1] for expr in dx⃗] # Apply broadcasting
     system = [postwalk(x -> replaceVars(x, mapping_to_indices), expr) for expr in system] # Replace variables with indices
 
     func = quote
-        function ODEFunc(t::Real, u::Matrix{<:Real}; $(constants...))::Matrix{<:Float64}
+        function ODEFunc(t::Real, u::Matrix{<:Real}; $(constants...))::Matrix{Float64}
             $(diff_var_initialisation...)
             $(system...)
 
-            return vcat($(diff_symbols))
+            return hcat($(diff_symbols...))
         end
     end
     @show func
