@@ -1,5 +1,7 @@
 module Interface
 
+using MacroTools: postwalk
+
 function collectSymbols!(expression::Expr, symbols::Vector{Symbol})
     for arg in expression.args
         if hasproperty(arg, :args)
@@ -26,10 +28,7 @@ ODEFunction(args...) = ODEFunction.func(args...)
 
 
 macro ODE(∂x::Expr, ∂y::Expr, ∂z::Expr)
-
-    # Check that ∂ is not used within the code
-    @assert nor([occursin("∂", string(expr)) for expr in [∂x, ∂y, ∂z]]...) "Remove usage of ∂."
-            
+  
     symbols = Vector{Symbol}()
 
     for expression in (∂x, ∂y, ∂z)
@@ -44,7 +43,8 @@ macro ODE(∂x::Expr, ∂y::Expr, ∂z::Expr)
     constants = setdiff(symbols, diff_symbols, dependent_vars)
     constants = [Expr(:(::), constant, :(Real)) for constant in constants]
 
-    diff_var_initialisation = [:($symbol = Vector{Float64}(undef, 3)) for symbol in diff_symbols]
+    # @show dependent_vars = Expr(:tuple, dependent_vars[1:end-1]..., :($(dependent_vars[end]) = eachrow(u)))
+    diff_var_initialisation = [:($symbol = Vector{Float64}(undef, size(u,2))) for symbol in diff_symbols]
     system = [var"@__dot__"(LineNumberNode(1), Main, ∂).args[1] for ∂ in [∂x, ∂y, ∂z]] # Apply broadcasting
 
     func = quote
@@ -53,7 +53,6 @@ macro ODE(∂x::Expr, ∂y::Expr, ∂z::Expr)
             x, y, z = eachrow(u)
 
             $(diff_var_initialisation...)
-
             $(system...)
 
             return $(diff_symbols...)
