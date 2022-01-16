@@ -1,6 +1,6 @@
 module Interface
 
-using MacroTools: postwalk, isline
+using MacroTools: postwalk, isline, inexpr
 
 function collectSymbols!(expression::Expr, symbols::Vector{Symbol})
     for arg in expression.args
@@ -68,29 +68,40 @@ macro ODE(dx⃗::Expr...)
     end
 
     # Filter out operators and functions
-    symbols = filter!(!Meta.isoperator, symbols)
-    symbols = filter!(!isFunction, symbols)
+    filter!(!Meta.isoperator, symbols)
+    filter!(!isFunction, symbols)
+    filter!(!isequal(:t), symbols)
 
     diff_symbols = Vector{Symbol}([expr.args[1] for expr in dx⃗])
 
     dependent_vars = Vector{Symbol}([Symbol(string(symbol)[end]) for symbol in diff_symbols])
     mapping_to_indices = Dict(symbol => index for (index, symbol) in enumerate(dependent_vars))
 
-    constants = setdiff(symbols, diff_symbols, dependent_vars)
+    constants = setdiff(symbols, diff_symbols, dependent_vars, [:t])
     constants = [Expr(:(::), constant, :(Real)) for constant in constants]
 
     diff_var_initialisation = [:($symbol = Vector{Float64}(undef, size(u, 2))) for symbol in diff_symbols]
     system = [var"@__dot__"(LineNumberNode(1), Main, expr).args[1] for expr in dx⃗] # Apply broadcasting
     system = [postwalk(x -> replaceVars(x, mapping_to_indices), expr) for expr in system] # Replace variables with indices
 
-    func = quote
-        function ODEFunc(t::Real, u::Matrix{<:Real}; $(constants...))::Matrix{Float64}
-            $(diff_var_initialisation...)
-            $(system...)
-
-            return hcat($(diff_symbols...))
+    if any(inexpr(expr, :t) for expr in dx⃗)
+        func = quote
+            function ODEFunc(t::Real, u::Matrix{<:Real}; $(constants...))::Matrix{Float64}
+                $(diff_var_initialisation...)
+                $(system...)
+                return hcat($(diff_symbols...))
+            end
+        end
+    else
+        func = quote
+            function ODEFunc(u::Matrix{<:Real}; $(constants...))::Matrix{Float64}
+                $(diff_var_initialisation...)
+                $(system...)
+                return hcat($(diff_symbols...))
+            end
         end
     end
+
     @show func
     return func
 end
