@@ -102,7 +102,6 @@ macro ODE(dx⃗::Expr...)
         end
     end
 
-    @show func
     return func
 end
 

@@ -3,8 +3,7 @@ include("Solvers.jl")
 
 module Swarms
 
-import ..Solvers: ButcherTableau
-using ..Solvers: RK4
+import ..Solvers: RK4, ButcherTableau, RungeKuttaMethod
 using ..StrangeAttractors: lorenz
 
 using Revise

@@ -9,7 +9,7 @@ include("Solvers.jl")
 
 using .StrangeAttractors: lorenz
 using .Swarms: Swarm, step!
-using .Solvers: RK4
+import .Solvers: RK4
 
 const FPS = 144
 
