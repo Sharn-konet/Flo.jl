@@ -1,12 +1,7 @@
-include("ExampleFunctions.jl")
-include("Solvers.jl")
-
 module Swarms
 
-import ..Solvers: RK4, ButcherTableau, RungeKuttaMethod
-using ..StrangeAttractors: lorenz
+include("Solvers.jl")
 
-using Revise
 using TensorOperations
 
 export Swarm, step!
@@ -34,7 +29,7 @@ struct Swarm
     end
 end
 
-function step!(swarm::Swarm, solver::ButcherTableau)
+function step!(swarm::Swarm, solver::RungeKuttaMethod)
 
     h = swarm.step_size
     sf = 0.9

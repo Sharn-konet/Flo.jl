@@ -1,9 +1,3 @@
-using Revise
-
-module Solvers
-
-export ButcherTableau, RK4, RungeKuttaMethod
-
 abstract type ButcherTableau end
 struct RungeKuttaMethod <: ButcherTableau
     α::Vector{<:Real}
@@ -19,17 +13,8 @@ struct AdaptiveRungeKuttaMethod <: ButcherTableau
     β::Matrix{<:Real}
     γ::Matrix{<:Real}
     order::Int
-    ButcherTableau(α, β, γ, order) = length(α) == size(γ, 1) & size(β, 2) == size(γ,2) & size(β, 1) == 2 ? 
+    AdaptiveRungeKuttaMethod(α, β, γ, order) = length(α) == size(γ, 1) & size(β, 2) == size(γ,2) & size(β, 1) == 2 ? 
         new(α, β, γ, order) : error("Not a valid Butcher Tableau")
-end
-
-function Base.show(io::IO, bt::ButcherTableau)
-    for i in 1:length(bt.β)
-        print(string(bt.β[i], "|", bt.γ[i,:]...), "\n")
-    end
-    
-    print("-+", ("-" for _ in size(bt.γ, 2))...)
-    print(" |", bt.α...)
 end
 
 RK4 = RungeKuttaMethod(
@@ -38,5 +23,3 @@ RK4 = RungeKuttaMethod(
     [[0, 1/2, 0, 0] [0, 0, 1/2, 0] [0, 0, 0, 1] [0, 0, 0, 0]], # γ
     4 # order
 )
-
-end

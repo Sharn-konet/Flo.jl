@@ -5,27 +5,25 @@ using Makie.Colors
 
 include("Swarms.jl")
 include("ExampleFunctions.jl")
-include("Solvers.jl")
 
 using .StrangeAttractors: lorenz
-using .Swarms: Swarm, step!
-import .Solvers: RK4
+using .Swarms: Swarm, step!, RK4
 
 const FPS = 144
 
-lorenz_attractor = Swarm(x -> lorenz(x, σ = 10, ρ = 28, β = 8/3), 3, 5, 1e-6)
+lorenz_attractor = Swarm(x -> lorenz(x, σ = 10, ρ = 28, β = 8/3), 3, 5, 0.5)
 
 # set_theme!()
 
-points = Observable(Point3f[])
+points = Observable(Point3f[eachcol(lorenz_attractor.positions)...])
 
-fig, ax, l = scatter(points,
-    colormap = :inferno, transparency = true,
-    axis = (; type = Axis3, protrusions = (0, 0, 0, 0),
-        viewmode = :fit, limits = (-30, 30, -30, 30, 0, 50)))
+fig, ax, l = scatter(points)
 
-for i in 1:10000
-    push!(points[], step!(lorenz_attractor, RK4))
+for i in 1:100
+    step!(lorenz_attractor, RK4)
+    points[] = push!(points[], eachcol(lorenz_attractor.positions)...)
+    notify(points)
+    sleep(1/FPS)
 end
 
-notify.((points, colors))
+
