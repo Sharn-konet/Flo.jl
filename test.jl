@@ -2,7 +2,7 @@ using Revise
 using Test: @testset, @test
 
 include("ExampleFunctions.jl")
-include("interface.jl")
+include("Interface.jl")
 
 using .Interface
 using .StrangeAttractors: yuwang, TSUCS2, lorenz, TSUCS1

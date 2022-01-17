@@ -1,9 +1,10 @@
 using Revise
 
+include("Interface.jl")
+
 module StrangeAttractors
 
-include("interface.jl")
-using .Interface: @ODE
+using ..Interface: @ODE
 
 export lorenz, TSUCS1, TSUCS2, yuwang
 
