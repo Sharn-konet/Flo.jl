@@ -6,7 +6,7 @@ function collectSymbols!(expression::Expr, symbols::Vector{Symbol})
     for arg in expression.args
         if hasproperty(arg, :args)
             collectSymbols!(arg, symbols)
-        else
+        elseif !(typeof(arg) <: Number)
             push!(symbols, arg)
         end
     end
@@ -26,6 +26,9 @@ function replaceVars(expr::Union{Expr, Symbol}, mapping::Dict)
     
     return expr
 end
+
+# Handle usage of Integers/Floats within expressions (such as exponents)
+replaceVars(expr::Number, mapping::Dict) = return expr
 
 struct ODEFunction <: Function
     func::Function
