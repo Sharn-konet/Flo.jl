@@ -15,18 +15,24 @@ struct Swarm
     step_size::Vector{Float64}
     error_history::Array{Float64}
 
-    function Swarm(func::Function, dim::Int64, size::Int64, step_size::Float64)
+    function Swarm(func::Function; 
+        size::Int64 = 1000, 
+        dim::Int64 = 3, 
+        tol::Float64 = 1e-8, 
+        step_size::Vector{Float64} = repeat([1e-2], size), 
+        positions::Matrix{Float64} = rand(Float64, dim, size) .*2 .-1)
         
-        if dim != 3
-            error("Number of dimensions not supported.")
-        end
+        if dim != 3 error("Number of dimensions not supported.") end
         
-        new(func, size, 3, 1e-8,
-            rand(Float64, 3, size),
-            repeat([step_size], size),
-            Array{Float64}(undef, 3, size, 0)
-        )
+        new(func, size, dim, tol, positions, step_size, Array{Float64}(undef, dim, size, 0))
     end
+end
+
+function Swarm(func::Function, default_function_params::NamedTuple)
+
+    # if dim != 3 error("Number of dimensions not supported") end
+
+    Swarm(x -> func(x; default_function_params...))
 end
 
 function step!(swarm::Swarm, solver::RungeKuttaMethod)

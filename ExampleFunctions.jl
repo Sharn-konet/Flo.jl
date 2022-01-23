@@ -25,6 +25,7 @@ lorenz = @ODE quote
     dy = x * (ρ - z) - y
     dz = x * y - β * z
 end
+
 # lorenz = u::Matrix{Float64} -> lorenz(u; σ = 10, ρ = 28, β = 8/3)
 
 TSUCS1 = @ODE quote
@@ -49,6 +50,12 @@ aizawa = @ODE quote
     dx = (z - β) * x - δ * y
     dy = δ * x + (z - β) * y
     dz = σ + α * z - (z^3)/3 - (x^2 + y^2)*(1 + ϵ * z) + ζ * z * x^3
+end
+
+lorenz_mod_2 = @ODE quote
+    dx = -α*x + y^2 - z^2 + α*σ
+    dy = x*(y-β*z) + δ
+    dz = -z + x*(β * y + z)
 end
 
 end
