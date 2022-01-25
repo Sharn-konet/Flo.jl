@@ -8,17 +8,17 @@ using ..Interface: @ODE
 
 export lorenz, TSUCS1, TSUCS2, yuwang, aizawa
 
-function LORENZ(t::Float64, u::Matrix{Float64}; σ::Float64 = 10.0, ρ::Float64 = 28.0, β::Float64 = 8 / 3)
+# function LORENZ(t::Float64, u::Matrix{Float64}; σ::Float64 = 10.0, ρ::Float64 = 28.0, β::Float64 = 8 / 3)
 
-    x, y, z = u[1, :], u[2, :], u[3, :]
+#     x, y, z = u[1, :], u[2, :], u[3, :]
 
-    ∂x = σ * (y - x)
-    ∂y = x * (ρ - z) - y
-    ∂z = x * y - β * z
+#     ∂x = σ * (y - x)
+#     ∂y = x * (ρ - z) - y
+#     ∂z = x * y - β * z
 
-    return [∂x ∂y ∂z]
+#     return [∂x ∂y ∂z]
 
-end
+# end
 
 lorenz = @ODE quote
     dx = σ * (y - x)
