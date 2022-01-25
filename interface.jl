@@ -83,7 +83,7 @@ macro ODE(dx⃗::Expr...)
     constants = setdiff(symbols, diff_symbols, dependent_vars, [:t])
     constant_defaults = Dict{Symbol,Expr}([expr.args[1] => expr for expr in dx⃗ if (length(string(expr.args[1])) == 1) & (expr.args[1] in constants)])
     @show constants
-    constants = [constant in keys(constant_defaults) ? Expr(:(=), Expr(:(::), Symbol(constant), Real), constant_defaults[constant].args[2]) : Expr(:(::), constant, :(Real)) for constant in constants]
+    constants = [constant in keys(constant_defaults) ? Expr(:(kw), Expr(:(::), Symbol(constant), :(Real)), constant_defaults[constant].args[2]) : Expr(:(::), constant, :(Real)) for constant in constants]
 
     filter(expr -> expr.args[1] in keys(constant_defaults), dx⃗)
 
@@ -94,7 +94,7 @@ macro ODE(dx⃗::Expr...)
     @show(system)
     @show(diff_symbols)
     @show constant_defaults
-    @show dump(constants[1])
+    @show dump(constants)
 
     if any(inexpr(expr, :t) for expr in dx⃗)
         func = quote
@@ -106,7 +106,7 @@ macro ODE(dx⃗::Expr...)
         end
     else
         func = quote
-            function ODEFunc(u::Matrix{<:Real}; $(esc.([constants...])...))::Matrix{Float64}
+            function ODEFunc(u::Matrix{<:Real}; $(constants...))::Matrix{Float64}
                 $(diff_var_initialisation...)
                 $(system...)
                 return hcat($(diff_symbols...))
