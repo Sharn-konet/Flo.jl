@@ -4,15 +4,14 @@ using GLMakie
 using Makie.Colors
 
 include("Swarms.jl")
-include("Solvers.jl")
 include("ExampleFunctions.jl")
 
 using .StrangeAttractors: lorenz, TSUCS2, yuwang, aizawa, lorenz_mod_2
-using .Swarms: Swarm, step!
+using .Swarms: Swarm, step!, RK4
 
 const FPS = 144
 
-lorenz_attractor = Swarm(lorenz, (σ = 10, ρ = 28, β = 8/3))
+lorenz_attractor = Swarm(lorenz)
 TSUCS2_attractor = Swarm(TSUCS2, (α = 40, δ = 0.16, ς = 55, ζ = 20, β = 1.833, ϵ = 0.65))
 yuwang_attractor = Swarm(yuwang, (α = 10, β = 40, σ = 2, δ = 2.5))
 aizawa_atrractor = Swarm(aizawa, (α = 0.95, β = 0.7, σ = 0.6, δ = 3.5, ϵ = 0.25, ζ = 0.1))

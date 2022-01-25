@@ -19,11 +19,11 @@ function isFunction(symbol::Symbol)
     return false
 end
 
-function replaceVars(expr::Union{Expr, Symbol}, mapping::Dict)
+function replaceVars(expr::Union{Expr,Symbol}, mapping::Dict)
     if expr in keys(mapping)
         return :(u[$(mapping[expr]), :])
     end
-    
+
     return expr
 end
 
@@ -63,7 +63,7 @@ end
 macro ODE(dx⃗::Expr...)
 
     dim = length(dx⃗)
-  
+
     symbols = Vector{Symbol}()
 
     for expression in dx⃗
@@ -75,17 +75,26 @@ macro ODE(dx⃗::Expr...)
     filter!(!isFunction, symbols)
     filter!(!isequal(:t), symbols)
 
-    diff_symbols = Vector{Symbol}([expr.args[1] for expr in dx⃗])
+    diff_symbols = Vector{Symbol}([expr.args[1] for expr in dx⃗ if length(string(expr.args[1])) == 2])
 
     dependent_vars = Vector{Symbol}([Symbol(string(symbol)[end]) for symbol in diff_symbols])
     mapping_to_indices = Dict(symbol => index for (index, symbol) in enumerate(dependent_vars))
 
     constants = setdiff(symbols, diff_symbols, dependent_vars, [:t])
-    constants = [Expr(:(::), constant, :(Real)) for constant in constants]
+    constant_defaults = Dict{Symbol,Expr}([expr.args[1] => expr for expr in dx⃗ if (length(string(expr.args[1])) == 1) & (expr.args[1] in constants)])
+    @show constants
+    constants = [constant in keys(constant_defaults) ? Expr(:(=), Expr(:(::), Symbol(constant), Real), constant_defaults[constant].args[2]) : Expr(:(::), constant, :(Real)) for constant in constants]
+
+    filter(expr -> expr.args[1] in keys(constant_defaults), dx⃗)
 
     diff_var_initialisation = [:($symbol = Vector{Float64}(undef, size(u, 2))) for symbol in diff_symbols]
-    system = [var"@__dot__"(LineNumberNode(1), Main, expr).args[1] for expr in dx⃗] # Apply broadcasting
+    system = [var"@__dot__"(LineNumberNode(1), Main, expr).args[1] for expr in dx⃗ if !(expr in values(constant_defaults))] # Apply broadcasting
     system = [postwalk(x -> replaceVars(x, mapping_to_indices), expr) for expr in system] # Replace variables with indices
+
+    @show(system)
+    @show(diff_symbols)
+    @show constant_defaults
+    @show dump(constants[1])
 
     if any(inexpr(expr, :t) for expr in dx⃗)
         func = quote
@@ -97,13 +106,16 @@ macro ODE(dx⃗::Expr...)
         end
     else
         func = quote
-            function ODEFunc(u::Matrix{<:Real}; $(constants...))::Matrix{Float64}
+            function ODEFunc(u::Matrix{<:Real}; $(esc.([constants...])...))::Matrix{Float64}
                 $(diff_var_initialisation...)
                 $(system...)
                 return hcat($(diff_symbols...))
             end
         end
     end
+
+
+    @show func
 
     return func
 end

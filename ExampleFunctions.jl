@@ -24,9 +24,15 @@ lorenz = @ODE quote
     dx = σ * (y - x)
     dy = x * (ρ - z) - y
     dz = x * y - β * z
+
+    σ = 10
+    ρ = 28
+    β = 8/3
 end
 
-# lorenz = u::Matrix{Float64} -> lorenz(u; σ = 10, ρ = 28, β = 8/3)
+u = [[1., 2., 3.] [4., 5., 6.] [7., 8., 9.]]
+
+lorenz(u)
 
 TSUCS1 = @ODE quote
     dx = α * (y - x) + δ * x * z
