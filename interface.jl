@@ -36,30 +36,30 @@ struct ODEFunction <: Function
 end
 
 
-# """ 
-#     ODEFunc!(t, u, [constants...])
+""" 
+    ODEFunc!(t, u, [constants...])
 
 
-# Update u based on current position and system defined using @ODE and provided
-# constants.
+Update u based on current position and system defined using @ODE and provided
+constants.
 
-# # Example
-# ``` julia-repl
-# julia> lorenz = @ODE quote
-#     dx = σ*(y-x) 
-#     dy = x*(ρ-z) - y 
-#     dz = x * y - β*z
-# end
+# Example
+``` julia-repl
+julia> lorenz = @ODE quote
+    dx = σ*(y-x) 
+    dy = x*(ρ-z) - y 
+    dz = x * y - β*z
+end
 
-# julia> u = [
-#     [1,2,3]
-#     [2,3,4]
-#     [4,5,6]
-# ]
+julia> u = [
+    [1,2,3]
+    [2,3,4]
+    [4,5,6]
+]
 
-# julia> lorenz(0.1, u, σ = 10, ρ = 28, β = 8/3)
-# ```
-# """
+julia> lorenz(0.1, u, σ = 10, ρ = 28, β = 8/3)
+```
+"""
 macro ODE(dx⃗::Expr...)
 
     dim = length(dx⃗)
@@ -82,7 +82,6 @@ macro ODE(dx⃗::Expr...)
 
     constants = setdiff(symbols, diff_symbols, dependent_vars, [:t])
     constant_defaults = Dict{Symbol,Expr}([expr.args[1] => expr for expr in dx⃗ if (length(string(expr.args[1])) == 1) & (expr.args[1] in constants)])
-    @show constants
     constants = [constant in keys(constant_defaults) ? Expr(:(kw), Expr(:(::), Symbol(constant), :(Real)), constant_defaults[constant].args[2]) : Expr(:(::), constant, :(Real)) for constant in constants]
 
     filter(expr -> expr.args[1] in keys(constant_defaults), dx⃗)
@@ -90,11 +89,6 @@ macro ODE(dx⃗::Expr...)
     diff_var_initialisation = [:($symbol = Vector{Float64}(undef, size(u, 2))) for symbol in diff_symbols]
     system = [var"@__dot__"(LineNumberNode(1), Main, expr).args[1] for expr in dx⃗ if !(expr in values(constant_defaults))] # Apply broadcasting
     system = [postwalk(x -> replaceVars(x, mapping_to_indices), expr) for expr in system] # Replace variables with indices
-
-    @show(system)
-    @show(diff_symbols)
-    @show constant_defaults
-    @show dump(constants)
 
     if any(inexpr(expr, :t) for expr in dx⃗)
         func = quote
@@ -113,9 +107,6 @@ macro ODE(dx⃗::Expr...)
             end
         end
     end
-
-
-    @show func
 
     return func
 end
