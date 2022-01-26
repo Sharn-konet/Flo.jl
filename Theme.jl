@@ -6,7 +6,7 @@ flo_theme = Theme(
         protrusions = (0,0,0,0),
         titlealign = :left,
         viewmode = :fit,
-        limits = (-100,100,-100,100,-100,100)
+        perspectiveness = 0.25
     )
 )
 

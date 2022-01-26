@@ -2,7 +2,7 @@ using Revise
 
 include("Interface.jl")
 
-module StrangeAttractors
+module Attractors
 
 using ..Interface: @ODE
 
@@ -34,6 +34,12 @@ TSUCS1 = @ODE quote
     dx = α * (y - x) + δ * x * z
     dy = ζ * y - x * z
     dz = β * z + x * y - ϵ * x * x
+
+    α = 40
+    β = 0.833
+    δ = 0.5
+    ϵ = 0.65
+    ζ = 20
 end
 
 TSUCS2 = @ODE quote
@@ -82,6 +88,14 @@ lorenz_mod_2 = @ODE quote
     β = 5
     σ = 9.9
     δ = 1
+end
+
+thomas = @ODE quote
+    dx = -β * x + sin(y)
+    dy = -β * y + sin(z)
+    dz = -β * z + sin(x)
+
+    β = 0.19
 end
 
 end

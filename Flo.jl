@@ -4,23 +4,21 @@ using GLMakie
 using Makie.Colors
 using LinearAlgebra: norm
 using ElasticArrays
+using Statistics: quantile, mean, median
 
 include("Swarms.jl")
 include("ExampleFunctions.jl")
 
-using .StrangeAttractors: lorenz, TSUCS2, yuwang, aizawa, lorenz_mod_2, TSUCS1
+using .Attractors: lorenz, TSUCS2, yuwang, aizawa, lorenz_mod_2, TSUCS1, thomas
 using .Swarms: Swarm, step!, RK4
 
 const FPS = 144
-
-ode_func = lorenz
-attractor = Swarm(ode_func)
 
 function createFigure(; fig::Makie.Figure = Figure(), limits)
 
     include("Theme.jl")
 
-    ax = Axis3(fig[1,1], aspect = (1,1,1), autolimitaspect = true, limits = limits)
+    ax = Axis3(fig[1,2], aspect = (1,1,1), autolimitaspect = true, limits = limits[])
 
     fig[2,1] = buttongrid = GridLayout(tellwidth = false)
     sim_state = Observable("Run")
@@ -34,7 +32,15 @@ function createFigure(; fig::Makie.Figure = Figure(), limits)
         notify.((run, sim_state))
     end
 
-    return fig, run
+    return fig, ax, run
+end
+
+function createDropdown!(fig, attractor, available_functions::Vector{Symbol})
+    menu = Menu(fig, options = string.(available_functions))
+
+    fig[1, 1] = vgrid!(Label(fig, "Function", width = nothing), menu, tellheight = false, width = events(figure.scene).window_area[].widths[1]/3)
+
+    return menu
 end
 
 function createSliders!(fig, parameters::NamedTuple)
@@ -46,7 +52,7 @@ function createSliders!(fig, parameters::NamedTuple)
         tellheight = false
     )
 
-    fig[1,2] = lsgrid.layout
+    fig[2,2] = lsgrid.layout
 
     sliderobservables = [s.value for s in lsgrid.sliders]
 
@@ -61,47 +67,55 @@ function createSliders!(fig, parameters::NamedTuple)
     end
 end
 
-function findLimits(func::Function)::Tuple
-    attractor = Swarm(func, size = 2, positions = (rand(Float64, 3, 2) .-1) .* 1e-6)
-    prev_positions = attractor.positions
-    history = ElasticArray{Float64}(undef, 3, 2, 0)
-    append!(history, prev_positions)
-    step!(attractor, RK4)
-    while norm(attractor.positions[:,1] .- attractor.positions[:,2]) < 60
-        prev_positions = attractor.positions
-        append!(history, prev_positions)
+function findLimits(func::Function; q = 0.001)::Tuple
+    num_particles = 100
+
+    attractor = Swarm(func, size = num_particles, positions = (rand(Float64, 3, num_particles) .-0.5) .* 2)
+    history = Array{Float64}(undef, 3, num_particles, 10000)
+
+    dims, particles, steps = map(x -> 1:size(history, x), [1,2,3])
+
+    # Run a time-limited simulation
+    for i in steps
+        history[:,:,i] = attractor.positions
         step!(attractor, RK4)
     end
 
-    maxInHistory = history -> maximum(history, dims = 3)
-    minInHistory = history -> minimum(history, dims = 3)
+    high_quantile = x -> quantile(x, 1 - q)
+    low_quantile = x -> quantile(x, q)
 
-    maxInSwarm = swarm_positions -> maximum(swarm_positions, dims = 2)
-    minInSwarm = swarm_positions -> minimum(swarm_positions, dims = 2)
+    upper_limits = mean([high_quantile(history[i,j,:]) for i in dims, j in particles], dims = 2)
+    lower_limits = mean([low_quantile(history[i,j,:]) for i in dims, j in particles], dims = 2)
 
-    upper_limits = (maxInSwarm ∘ maxInHistory)(history)
-    lower_limits = (minInSwarm ∘ minInHistory)(history)
-
-    limits = Tuple([(zip(lower_limits, upper_limits)...)...]) .* 1.2
+    limits = (Tuple([(zip(lower_limits, upper_limits)...)...]) .* 1.5)
 end
 
-limits = findLimits(ode_func)
+ode_func = TSUCS2
+attractor = Observable(Swarm(ode_func, size = 2000, step_size = repeat([1e-2], 2000)))
 
-figure, run_var = createFigure(limits = limits); figure
+limits = Observable(findLimits(ode_func))
+
+figure, ax, run_var = createFigure(limits = limits); figure
+
+menu = createDropdown!(figure, attractor, names(Main.Attractors))
+
+on(menu.selection) do func
+    attractor[] = eval(:(Swarm($(Symbol(func)))))
+    ax.limits[] = findLimits(eval(:($(Symbol(func)))))
+end
 
 # createSliders!(figure, (σ = 10, ρ = 28, β = 8/3))
-
 solver = RK4
 
-points = Observable(Point3f.(Vector{Float64}.([eachcol(attractor.positions)...])))
+points = Observable(Point3f.(Vector{Float64}.([eachcol(attractor[].positions)...])))
 
-scatter!(points, markersize = 0.05, markerspace = SceneSpace)
+scatter!(points, markersize = 0.025, markerspace = SceneSpace)
 
 while events(figure.scene).window_open.val
     # Main sim loop
     while run_var[] & events(figure.scene).window_open.val
-        step!(attractor, solver)
-        points[] = [eachcol(attractor.positions)...]
+        step!(attractor[], solver)
+        points[] = [eachcol(attractor[].positions)...]
         notify(points)
         sleep(1/FPS - 0.000208)
     end
