@@ -9,7 +9,7 @@ using Statistics: quantile, mean, median
 include("Swarms.jl")
 include("ExampleFunctions.jl")
 
-using .Attractors: lorenz, TSUCS2, yuwang, aizawa, lorenz_mod_2, TSUCS1, thomas
+using .Attractors
 using .Swarms: Swarm, step!, RK4
 
 const FPS = 144
@@ -18,9 +18,9 @@ function createFigure(; fig::Makie.Figure = Figure(), limits)
 
     include("Theme.jl")
 
-    ax = Axis3(fig[1,2], aspect = (1,1,1), autolimitaspect = true, limits = limits[])
+    ax = Axis3(fig[1:2,2], aspect = (1,1,1), autolimitaspect = true, limits = limits[])
 
-    fig[2,1] = buttongrid = GridLayout(tellwidth = false)
+    fig[3,1] = buttongrid = GridLayout(tellwidth = false)
     sim_state = Observable("Run")
     run_button = buttongrid[1,1] = Button(fig, label = sim_state)
 
@@ -35,8 +35,8 @@ function createFigure(; fig::Makie.Figure = Figure(), limits)
     return fig, ax, run
 end
 
-function createDropdown!(fig, attractor, available_functions::Vector{Symbol})
-    menu = Menu(fig, options = string.(available_functions))
+function createDropdown!(fig, available_functions::Vector{Symbol})
+    menu = Menu(fig, options = sort(string.(available_functions)))
 
     fig[1, 1] = vgrid!(Label(fig, "Function", width = nothing), menu, tellheight = false, width = events(figure.scene).window_area[].widths[1]/3)
 
@@ -90,14 +90,14 @@ function findLimits(func::Function; q = 0.001)::Tuple
     limits = (Tuple([(zip(lower_limits, upper_limits)...)...]) .* 1.5)
 end
 
-ode_func = TSUCS2
+ode_func = aizawa
 attractor = Observable(Swarm(ode_func, size = 2000, step_size = repeat([1e-2], 2000)))
 
 limits = Observable(findLimits(ode_func))
 
 figure, ax, run_var = createFigure(limits = limits); figure
 
-menu = createDropdown!(figure, attractor, names(Main.Attractors))
+menu = createDropdown!(figure, names(Main.Attractors))
 
 on(menu.selection) do func
     attractor[] = eval(:(Swarm($(Symbol(func)))))
