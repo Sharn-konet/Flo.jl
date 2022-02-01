@@ -35,8 +35,8 @@ function createFigure(; fig::Makie.Figure = Figure(), limits)
     return fig, ax, run
 end
 
-function createDropdown!(fig, available_functions::Vector{Symbol})
-    menu = Menu(fig, options = sort(string.(available_functions)))
+function createDropdown!(fig, available_functions::Vector{String})
+    menu = Menu(fig, options = sort(available_functions))
 
     fig[1, 1] = vgrid!(Label(fig, "Function", width = nothing), menu, tellheight = false, width = events(figure.scene).window_area[].widths[1]/3)
 
@@ -90,18 +90,27 @@ function findLimits(func::Function; q = 0.001)::Tuple
     limits = (Tuple([(zip(lower_limits, upper_limits)...)...]) .* 1.5)
 end
 
-ode_func = aizawa
+function dropdownMapping(func_names::Vector{Symbol})
+    dropdown_style = str -> replace(str, "_" => " ") |> titlecase |> str -> replace(str, " " => "-")
+    styled_names = (dropdown_style ∘ string).(func_names)
+    return (Dict ∘ zip)(styled_names, func_names)
+end
+
+ode_func = Attractors.aizawa
 attractor = Observable(Swarm(ode_func, size = 2000, step_size = repeat([1e-2], 2000)))
 
 limits = Observable(findLimits(ode_func))
 
 figure, ax, run_var = createFigure(limits = limits); figure
 
-menu = createDropdown!(figure, names(Main.Attractors))
+dropdown_dict = (dropdownMapping ∘ names)(Main.Attractors)
 
-on(menu.selection) do func
-    attractor[] = eval(:(Swarm($(Symbol(func)))))
-    ax.limits[] = findLimits(eval(:($(Symbol(func)))))
+menu = createDropdown!(figure, [keys(dropdown_dict)...])
+
+on(menu.selection) do dropdown_item
+    func = dropdown_dict[dropdown_item]
+    attractor[] = eval(:(Swarm($(func))))
+    ax.limits[] = findLimits(eval(:($(func))))
 end
 
 # createSliders!(figure, (σ = 10, ρ = 28, β = 8/3))
