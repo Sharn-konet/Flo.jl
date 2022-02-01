@@ -90,12 +90,18 @@ function findLimits(func::Function; q = 0.001)::Tuple
     limits = (Tuple([(zip(lower_limits, upper_limits)...)...]) .* 1.5)
 end
 
+function styleDropdown(str::String)
+    return replace(str, "_" => " ") |> titlecase |> str -> replace(str, " " => "-")
+end
+
 ode_func = aizawa
 attractor = Observable(Swarm(ode_func, size = 2000, step_size = repeat([1e-2], 2000)))
 
 limits = Observable(findLimits(ode_func))
 
 figure, ax, run_var = createFigure(limits = limits); figure
+
+dropdown_to_func = (Dict ∘ zip)(map(styleDropdown, names(Main.Attractors)), Main.Attractors)
 
 menu = createDropdown!(figure, names(Main.Attractors))
 
