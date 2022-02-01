@@ -1,10 +1,13 @@
 using Revise
 
 using GLMakie
+import GLMakie: lines!
 using Makie.Colors
 using LinearAlgebra: norm
 using ElasticArrays
 using Statistics: quantile, mean, median
+using DataStructures: CircularBuffer
+import Base: push!
 
 include("Swarms.jl")
 include("ExampleFunctions.jl")
@@ -90,8 +93,16 @@ function findLimits(func::Function; q = 0.001)::Tuple
     limits = (Tuple([(zip(lower_limits, upper_limits)...)...]) .* 1.5)
 end
 
+function push!(buffer::Observable{CircularBuffer{Vector{Float64}}}, args...)
+    push!(buffer[], args...)
+end
+
+# function lines!(buffer::Observable{CircularBuffer{Vector{Float64}}}, args...)
+#     lines!()
+# end
+
 ode_func = aizawa
-attractor = Observable(Swarm(ode_func, size = 2000, step_size = repeat([1e-2], 2000)))
+attractor = Observable(Swarm(ode_func))
 
 limits = Observable(findLimits(ode_func))
 
@@ -109,14 +120,27 @@ solver = RK4
 
 points = Observable(Point3f.(Vector{Float64}.([eachcol(attractor[].positions)...])))
 
+history = [Observable(CircularBuffer{Vector{Float64}}(50)) for _ in 1:1000]
+
 scatter!(points, markersize = 0.025, markerspace = SceneSpace)
+
+for _ in 1:2
+    push!.(history, [eachcol(attractor[].positions)...])
+    step!(attractor[], solver)
+end
+
+for hist in history
+    lines!(hcat(hist[]...), linewidth = 1)
+end
 
 while events(figure.scene).window_open.val
     # Main sim loop
     while run_var[] & events(figure.scene).window_open.val
+        push!.(history, [eachcol(attractor[].positions)...])
         step!(attractor[], solver)
         points[] = [eachcol(attractor[].positions)...]
         notify(points)
+        if length(history[1][][1]) > 2 notify.(history) end
         sleep(1/FPS - 0.000208)
     end
     sleep(1e-12)
