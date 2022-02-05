@@ -17,6 +17,11 @@ include("FigureElements.jl")
 
 const FPS = 144
 
+"""
+    findLimits(func, q)
+
+Runs a short simulation to determine appropriate limits for displaying a particular function.
+"""
 function findLimits(func::Function; q = 0.001)::Tuple
     num_particles = 100
 
@@ -40,6 +45,12 @@ function findLimits(func::Function; q = 0.001)::Tuple
     limits = (Tuple([(zip(lower_limits, upper_limits)...)...]) .* 1.5)
 end
 
+"""
+    dropdownMapping(func_names)
+
+Generates a Dictionary that cleans a set of function names and creates a mapping
+from styled names => function names.
+"""
 function dropdownMapping(func_names::Vector{Symbol})
     dropdown_style = str -> replace(str, "_" => " ") |> titlecase |> str -> replace(str, " " => "-")
     styled_names = (dropdown_style ∘ string).(func_names)
@@ -52,6 +63,8 @@ function julia_main()
     attractor = Observable(Swarm(ode_func, size = 2000, step_size = repeat([1e-2], 2000)))
 
     limits = Observable(findLimits(ode_func))
+
+    include("src/Theme.jl")
 
     figure, ax, run_var = createFigure(limits = limits); display(figure)
 
@@ -78,7 +91,7 @@ function julia_main()
             step!(attractor[], solver)
             points[] = [eachcol(attractor[].positions)...]
             notify(points)
-            sleep(1/FPS - 0.000208)
+            sleep(1/FPS)
         end
         sleep(1e-12)
     end

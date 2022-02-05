@@ -12,18 +12,6 @@ export lorenz, TSUCS1, TSUCS2, yuwang, aizawa,
        burke_shaw, chen_celikovsky, chen_lee, dequan_li,
        hadley, halvorsen, newton_leipnik
 
-# function LORENZ(t::Float64, u::Matrix{Float64}; σ::Float64 = 10.0, ρ::Float64 = 28.0, β::Float64 = 8 / 3)
-
-#     x, y, z = u[1, :], u[2, :], u[3, :]
-
-#     ∂x = σ * (y - x)
-#     ∂y = x * (ρ - z) - y
-#     ∂z = x * y - β * z
-
-#     return [∂x ∂y ∂z]
-
-# end
-
 lorenz = @ODE quote
     dx = σ * (y - x)
     dy = x * (ρ - z) - y

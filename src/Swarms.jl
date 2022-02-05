@@ -6,6 +6,11 @@ using TensorOperations
 
 export Swarm, step!
 
+"""
+    Swarm(func; [size, dim, tol, step_size, positions])
+
+Structure storing all information needed to describe a swarm of particles.
+"""
 struct Swarm
     func::Function
     size::Int64
@@ -35,10 +40,14 @@ function Swarm(func::Function, default_function_params::NamedTuple)
     Swarm(x -> func(x; default_function_params...))
 end
 
+"""
+    step!(swarm, solver)
+
+Step the swarm one step using the provided solver.
+"""
 function step!(swarm::Swarm, solver::RungeKuttaMethod)
 
     h = swarm.step_size
-    sf = 0.9
 
     dx⃗ = zeros(Float64, size(swarm.positions)..., length(solver.β))
     y_step = Matrix{Float64}(undef, size(swarm.positions)...)
@@ -52,7 +61,6 @@ function step!(swarm::Swarm, solver::RungeKuttaMethod)
     @tensor y_step[i,j] = dx⃗[i,j,k]*solver.α[k]
 
     swarm.positions .+= h'.*y_step
-
 end
 
 end
