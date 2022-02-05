@@ -1,9 +1,15 @@
+name = "Flo"
+uuid = "63061dd0-faf1-4cf2-b051-ddfa2c5605d5"
+authors = ["Sharn-konet Reitsma"]
+version = "0.1.0"
+
 [deps]
-ElasticArrays = "fdbdab4c-e67f-52f5-8c3f-e7b388dad3d4"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TensorOperations = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
