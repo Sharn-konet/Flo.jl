@@ -57,7 +57,7 @@ function dropdownMapping(func_names::Vector{Symbol})
     return (Dict ∘ zip)(styled_names, func_names)
 end
 
-function julia_main()
+function julia_main()::Cint
     ode_func = Attractors.aizawa
 
     attractor = Observable(Swarm(ode_func, size = 2000, step_size = repeat([1e-2], 2000)))
@@ -68,7 +68,7 @@ function julia_main()
 
     figure, ax, run_var = createFigure(limits = limits); display(figure)
 
-    dropdown_dict = (dropdownMapping ∘ names)(Flo.Attractors)
+    dropdown_dict = dropdownMapping(names(Flo.Attractors)[2:end])
 
     menu = createDropdown!(figure, [keys(dropdown_dict)...])
 

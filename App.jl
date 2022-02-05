@@ -1,3 +1,3 @@
-using Flo
+using Flo: julia_main
 
-Flo.julia_main()
+julia_main()
