@@ -26,7 +26,7 @@ Runs a short simulation to determine appropriate limits for displaying a particu
 function findLimits(func::Function; q = 0.001)::Tuple
     num_particles = 100
 
-    attractor = Swarm(func, size = num_particles, positions = (rand(Float64, 3, num_particles) .-0.5) .* 2)
+    attractor = Swarm(size = num_particles, positions = (rand(Float64, 3, num_particles) .-0.5) .* 2)
     history = Array{Float64}(undef, 3, num_particles, 10000)
 
     dims, particles, steps = map(x -> 1:size(history, x), [1,2,3])
@@ -34,7 +34,7 @@ function findLimits(func::Function; q = 0.001)::Tuple
     # Run a time-limited simulation
     for i in steps
         history[:,:,i] = attractor.positions
-        step!(attractor, RK4)
+        step!(attractor, func, RK4)
     end
 
     high_quantile = x -> quantile(x, 1 - q)
@@ -59,11 +59,12 @@ function dropdownMapping(func_names::Vector{Symbol})
 end
 
 function julia_main()::Cint
-    ode_func = Attractors.aizawa
 
-    attractor = Observable(Swarm(ode_func, size = 2000, step_size = repeat([1e-2], 2000)))
+    ode_func = Observable{Function}(Attractors.aizawa)
 
-    limits = Observable(findLimits(ode_func))
+    attractor = Observable(Swarm(size = 2000, step_size = repeat([1e-2], 2000)))
+
+    limits = Observable(findLimits(ode_func[]))
 
     include("src/Theme.jl")
 
@@ -81,9 +82,8 @@ function julia_main()::Cint
     menu = createDropdown!(figure, [keys(dropdown_dict)...])
 
     on(menu.selection) do dropdown_item
-        func = dropdown_dict[dropdown_item]
-        attractor[] = eval(:(Swarm($(func))))
-        ax.limits[] = findLimits(eval(:($(func))))
+        ode_func[] = eval(dropdown_dict[dropdown_item])
+        ax.limits[] = findLimits(eval(:($(ode_func[]))))
     end
 
     # createSliders!(figure, (σ = 10, ρ = 28, β = 8/3))
@@ -93,12 +93,10 @@ function julia_main()::Cint
 
     scatter!(points, markersize = 0.025, markerspace = SceneSpace)
 
-    
-
     while events(figure.scene).window_open.val
         # Main sim loop
         while run_var[] & events(figure.scene).window_open.val
-            step!(attractor[], solver)
+            step!(attractor[], ode_func[], solver)
             points[] = [eachcol(attractor[].positions)...]
             notify(points)
             sleep(1/FPS)

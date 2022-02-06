@@ -12,7 +12,6 @@ export Swarm, step!
 Structure storing all information needed to describe a swarm of particles.
 """
 struct Swarm
-    func::Function
     size::Int64
     dim::Int8
     tol::Float64
@@ -20,7 +19,7 @@ struct Swarm
     step_size::Vector{Float64}
     error_history::Array{Float64}
 
-    function Swarm(func::Function; 
+    function Swarm(; 
         size::Int64 = 1000, 
         dim::Int64 = 3, 
         tol::Float64 = 1e-8, 
@@ -29,15 +28,8 @@ struct Swarm
         
         if dim != 3 error("Number of dimensions not supported.") end
         
-        new(func, size, dim, tol, positions, step_size, Array{Float64}(undef, dim, size, 0))
+        new(size, dim, tol, positions, step_size, Array{Float64}(undef, dim, size, 0))
     end
-end
-
-function Swarm(func::Function, default_function_params::NamedTuple)
-
-    # if dim != 3 error("Number of dimensions not supported") end
-
-    Swarm(x -> func(x; default_function_params...))
 end
 
 """
@@ -45,7 +37,7 @@ end
 
 Step the swarm one step using the provided solver.
 """
-function step!(swarm::Swarm, solver::RungeKuttaMethod)
+function step!(swarm::Swarm, func::Function, solver::RungeKuttaMethod)
 
     h = swarm.step_size
 
@@ -55,7 +47,7 @@ function step!(swarm::Swarm, solver::RungeKuttaMethod)
     for i in 1:length(solver.β)
         weights = solver.γ[i,:]
         @tensor y_step[i,j] = dx⃗[i,j,k]*weights[k]
-        dx⃗[:,:,i] = swarm.func(swarm.positions + h'.*y_step)'
+        dx⃗[:,:,i] = func(swarm.positions + h'.*y_step)'
     end
 
     @tensor y_step[i,j] = dx⃗[i,j,k]*solver.α[k]
