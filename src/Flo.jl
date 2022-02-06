@@ -6,6 +6,7 @@ using GLMakie; GLMakie.activate!
 using Makie.Colors
 using LinearAlgebra: norm
 using Statistics: quantile, mean, median
+using Printf: @sprintf
 
 include("Swarms.jl")
 include("ExampleFunctions.jl")
@@ -68,8 +69,15 @@ function julia_main()::Cint
 
     figure, ax, run_var = createFigure(limits = limits); display(figure)
 
-    dropdown_dict = dropdownMapping(names(Flo.Attractors)[2:end])
+    speed_slider, _, _, layout = labelslider!(figure.scene, "Speed", exp10.(range(-4, -1, length = 50)), startvalue = 1e-2, format = x -> @sprintf("%.1e", x))
 
+    figure[3,2] = layout
+
+    on(speed_slider.value) do speed
+        attractor[].step_size .= speed
+    end
+
+    dropdown_dict = dropdownMapping(names(Flo.Attractors)[2:end])
     menu = createDropdown!(figure, [keys(dropdown_dict)...])
 
     on(menu.selection) do dropdown_item
@@ -84,6 +92,8 @@ function julia_main()::Cint
     points = Observable(Point3f.(Vector{Float64}.([eachcol(attractor[].positions)...])))
 
     scatter!(points, markersize = 0.025, markerspace = SceneSpace)
+
+    
 
     while events(figure.scene).window_open.val
         # Main sim loop

@@ -110,7 +110,7 @@ genesio_tesi = @ODE quote
 end
 
 finance = @ODE quote
-    dx = ((1/β) - a)*x + z + x*y
+    dx = ((1/β) - α)*x + z + x*y
     dy = -β*y - x^2
     dz = -x - σ*z
 
