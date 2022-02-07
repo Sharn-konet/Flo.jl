@@ -5,7 +5,7 @@ using Revise
 using GLMakie; GLMakie.activate!
 using Makie.Colors
 using LinearAlgebra: norm
-using Statistics: quantile, mean, median
+using Statistics: quantile, mean, median, std
 using Printf: @sprintf
 
 include("Swarms.jl")
@@ -27,7 +27,7 @@ function findLimits(func::Function; q = 0.001)::Tuple
     num_particles = 100
 
     attractor = Swarm(size = num_particles, positions = (rand(Float64, 3, num_particles) .-0.5) .* 2)
-    history = Array{Float64}(undef, 3, num_particles, 10000)
+    history = Array{Float64}(undef, 3, num_particles, 5000)
 
     dims, particles, steps = map(x -> 1:size(history, x), [1,2,3])
 
@@ -47,6 +47,31 @@ function findLimits(func::Function; q = 0.001)::Tuple
 end
 
 """
+    findStats(func)
+
+Simulates a function for a number of steps, gives statistics to normalise function on each dimension.
+"""
+function findStats(func::Function)::Tuple
+    num_particles = 100
+
+    attractor = Swarm(size = num_particles, positions = (rand(Float64, 3, num_particles) .-0.5) .* 2)
+    history = Array{Float64}(undef, 3, num_particles, 5000)
+
+    dims, particles, steps = map(x -> 1:size(history, x), [1,2,3])
+
+    # Run a time-limited simulation
+    for i in steps
+        history[:,:,i] = attractor.positions
+        step!(attractor, func, RK4)
+    end
+
+    # Reshape to create set of observations for each dim
+    history = reshape(history, dims, length(particles)*length(steps))
+
+    return (mean(history, dims = 2), std(history, dims = 2))
+end
+
+"""
     dropdownMapping(func_names)
 
 Generates a Dictionary that cleans a set of function names and creates a mapping
@@ -58,32 +83,76 @@ function dropdownMapping(func_names::Vector{Symbol})
     return (Dict ∘ zip)(styled_names, func_names)
 end
 
+"""
+    getDefaultArgs(func)
+
+Return all default arguments of a function and their associated variable names.
+"""
+function getDefaultArgs(func)
+    arguments = code_lowered(func)[1].code[1].args
+    arguments = filter(x -> isa(x, Real), arguments)
+
+end
+
+function refreshPoints(point::Real, limits::NTuple{2, Real})::Float64
+    if (point < limits[1]) | (point > limits[2])
+        return limits[1] + (limits[2] - limits[1])*rand(Float64)
+    else
+        return point
+    end
+end
+
+function refreshPoints(positions::Vector{<:Real}, limits::NTuple{6, Real})
+    for dim in 1:length(positions)
+        positions[dim] = refreshPoints(positions[dim], limits[2*dim-1:2*dim])
+    end
+
+    return positions
+end
+
 function julia_main()::Cint
+    μ = 0; σ = 1
 
     ode_func = Observable{Function}(Attractors.aizawa)
-
     attractor = Observable(Swarm(size = 2000, step_size = repeat([1e-2], 2000)))
-
-    limits = Observable(findLimits(ode_func[]))
-
+    
+    # Create main figure
     include("src/Theme.jl")
-
+    limits = Observable(findLimits(ode_func[]))
     figure, ax, run_var = createFigure(limits = limits); display(figure)
 
-    speed_slider, _, _, layout = labelslider!(figure.scene, "Speed", exp10.(range(-4, -1, length = 50)), startvalue = 1e-2, format = x -> @sprintf("%.1e", x))
-
+    # Create slider to adjust speed
+    speed_slider, _, _, layout = labelslider!(figure.scene, "Speed", exp10.(range(-4, -1, length = 400)), startvalue = 1e-2, format = x -> @sprintf("%.1e", x), snap =false)
     figure[3,2] = layout
 
     on(speed_slider.value) do speed
         attractor[].step_size .= speed
     end
 
+    normalisation = Toggle(figure, active = false)
+    label = Label(figure, lift(x -> x ? "Normalised" : "Unnormalised", normalisation.active))
+
+    on(normalisation.active) do normalise
+        if normalise
+            μ, σ = findStats(eval(:($(ode_func[]))))
+            ax.limits[] = (-3., 3., -3., 3., -3., 3.)
+        else
+            ax.limits[] = findLimits(eval(:($(ode_func[]))))
+        end
+    end
+
+    figure[1:2, 3] = grid!(hcat(normalisation, label), tellheight = false)
+
     dropdown_dict = dropdownMapping(names(Flo.Attractors)[2:end])
     menu = createDropdown!(figure, [keys(dropdown_dict)...])
 
     on(menu.selection) do dropdown_item
         ode_func[] = eval(dropdown_dict[dropdown_item])
-        ax.limits[] = findLimits(eval(:($(ode_func[]))))
+        if normalisation.active[]
+            μ, σ = findStats(eval(:($(ode_func[]))))
+        else
+            ax.limits[] = findLimits(eval(:($(ode_func[]))))
+        end
     end
 
     # createSliders!(figure, (σ = 10, ρ = 28, β = 8/3))
@@ -97,8 +166,13 @@ function julia_main()::Cint
         # Main sim loop
         while run_var[] & events(figure.scene).window_open.val
             step!(attractor[], ode_func[], solver)
-            points[] = [eachcol(attractor[].positions)...]
-            notify(points)
+            if normalisation.active[]
+                points[] = [(x -> refreshPoints(x, ax.limits[][2*row-1:2*row])).(((attractor[].positions .- μ) ./ σ)[row,:]) for row in 1:(size(attractor[].positions, 1))]
+            else
+                println(size([(x -> refreshPoints(x, ax.limits[][2*row-1:2*row])).(attractor[].positions[row, :]) for col in 1:(size(attractor[].positions, 2))]))
+                println(size(points[]))
+                points[] = [(x -> refreshPoints(x, ax.limits[][2*row-1:2*row])).(attractor[].positions[:, col]) for col in 1:(size(attractor[].positions, 2))]
+            end
             sleep(1/FPS)
         end
         sleep(1e-12)
