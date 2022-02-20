@@ -68,7 +68,7 @@ function findStats(func::Function)::Tuple
     # Reshape to create set of observations for each dim
     history = reshape(history, dims, length(particles)*length(steps))
 
-    return (mean(history, dims = 2), std(history, dims = 2))
+    return ([mean(history, dims = 2)...], [std(history, dims = 2)...])
 end
 
 """
@@ -94,32 +94,39 @@ function getDefaultArgs(func)
 
 end
 
-function refreshPoints(point::Real, limits::NTuple{2, Real})::Float64
-    if (point < limits[1]) | (point > limits[2])
-        return limits[1] + (limits[2] - limits[1])*rand(Float64)
+# function outsideLimits(point::Real, limits::NTuple{2, <:Real})::Float64
+#     if (point < limits[1]) | (point > limits[2])
+#         return limits[1] + (limits[2] - limits[1]) * rand(Float64)
+#     else
+#         return point
+#     end
+# end
+
+function refreshPoints(position::Vector{<:Real}, limits::NTuple{6, <:Real})
+    outsideLimits(point::Real, limits::NTuple{2, <:Real}) = (point < 2*limits[1]) | (point > 2*limits[2])
+
+    dims = length(position)
+    if any([outsideLimits(position[dim], limits[2*dim-1:2*dim]) for dim in 1:dims])
+        new_position = rand(Float64, dims)
+        for dim in 1:dims
+            new_position[dim] = (limits[2*dim-1] + (limits[2*dim] - limits[2*dim-1]) * new_position[dim])*(3/4)
+        end
+        return new_position
     else
-        return point
+        return position
     end
-end
-
-function refreshPoints(positions::Vector{<:Real}, limits::NTuple{6, Real})
-    for dim in 1:length(positions)
-        positions[dim] = refreshPoints(positions[dim], limits[2*dim-1:2*dim])
-    end
-
-    return positions
 end
 
 function julia_main()::Cint
-    μ = 0; σ = 1
 
     ode_func = Observable{Function}(Attractors.aizawa)
-    attractor = Observable(Swarm(size = 2000, step_size = repeat([1e-2], 2000)))
+    attractor = Observable(Swarm(size = 1000, step_size = repeat([1e-2], 1000)))
     
     # Create main figure
     include("src/Theme.jl")
     limits = Observable(findLimits(ode_func[]))
     figure, ax, run_var = createFigure(limits = limits); display(figure)
+    # ax.limits[] = findLimits(eval(:($(ode_func[]))))
 
     # Create slider to adjust speed
     speed_slider, _, _, layout = labelslider!(figure.scene, "Speed", exp10.(range(-4, -1, length = 400)), startvalue = 1e-2, format = x -> @sprintf("%.1e", x), snap =false)
@@ -132,13 +139,13 @@ function julia_main()::Cint
     normalisation = Toggle(figure, active = false)
     label = Label(figure, lift(x -> x ? "Normalised" : "Unnormalised", normalisation.active))
 
-    on(normalisation.active) do normalise
-        if normalise
-            μ, σ = findStats(eval(:($(ode_func[]))))
-            ax.limits[] = (-3., 3., -3., 3., -3., 3.)
-        else
-            ax.limits[] = findLimits(eval(:($(ode_func[]))))
-        end
+    μ = lift((func, norm) -> norm ? findStats(eval(:($(func))))[1] : [0., 0., 0.], ode_func, normalisation.active)
+    σ = lift((func, norm) -> norm ? findStats(eval(:($(func))))[2] : [1., 1., 1.], ode_func, normalisation.active)
+    
+    limits = lift((func, norm) -> norm ? (-3.,3.,-3.,3.,-3.,3.) : findLimits(eval(:($(func)))), ode_func, normalisation.active)
+    
+    on(limits) do limit
+        ax.limits[] = limit
     end
 
     figure[1:2, 3] = grid!(hcat(normalisation, label), tellheight = false)
@@ -148,31 +155,24 @@ function julia_main()::Cint
 
     on(menu.selection) do dropdown_item
         ode_func[] = eval(dropdown_dict[dropdown_item])
-        if normalisation.active[]
-            μ, σ = findStats(eval(:($(ode_func[]))))
-        else
-            ax.limits[] = findLimits(eval(:($(ode_func[]))))
-        end
+    end 
+
+    points = @lift begin
+        positions = $(normalisation.active) ? ($(attractor).positions .- $μ) ./ $σ : $(attractor).positions
+        positions = ((x -> refreshPoints(x, $(ax.limits))) ∘ Vector{Float64}).([eachcol(positions)...])
+        return Point3f.(positions)
     end
-
-    # createSliders!(figure, (σ = 10, ρ = 28, β = 8/3))
-    solver = RK4
-
-    points = Observable(Point3f.(Vector{Float64}.([eachcol(attractor[].positions)...])))
 
     scatter!(points, markersize = 0.025, markerspace = SceneSpace)
 
     while events(figure.scene).window_open.val
         # Main sim loop
         while run_var[] & events(figure.scene).window_open.val
-            step!(attractor[], ode_func[], solver)
-            if normalisation.active[]
-                points[] = [(x -> refreshPoints(x, ax.limits[][2*row-1:2*row])).(((attractor[].positions .- μ) ./ σ)[row,:]) for row in 1:(size(attractor[].positions, 1))]
-            else
-                println(size([(x -> refreshPoints(x, ax.limits[][2*row-1:2*row])).(attractor[].positions[row, :]) for col in 1:(size(attractor[].positions, 2))]))
-                println(size(points[]))
-                points[] = [(x -> refreshPoints(x, ax.limits[][2*row-1:2*row])).(attractor[].positions[:, col]) for col in 1:(size(attractor[].positions, 2))]
+            step!(attractor[], ode_func[], RK4)
+            for j in 1:size(attractor[].positions, 2)
+                attractor[].positions[:,j] = refreshPoints(attractor[].positions[:,j], ax.limits[])
             end
+            notify.((points, attractor, limits))
             sleep(1/FPS)
         end
         sleep(1e-12)
